@@ -1,0 +1,10 @@
+import whisper
+
+# Modèle chargé
+model = whisper.load_model("small")
+
+# Transcription de l'audio en spécifiant la langue
+result = model.transcribe("output_audio.wav", language="fr")
+
+# Afficher la transcription
+print(result["text"])

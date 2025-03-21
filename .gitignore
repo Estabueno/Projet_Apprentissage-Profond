@@ -1,0 +1,4 @@
+#Virtual env and config
+.venv/
+.idea/
+*.pyc
