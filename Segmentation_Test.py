@@ -1,4 +1,4 @@
-import whisper
+import whisper # type: ignore
 import datetime
 
 from Transcription_Test import Transcribe

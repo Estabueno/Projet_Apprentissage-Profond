@@ -1,5 +1,5 @@
 from transformers import pipeline
-import nltk
+import nltk # type: ignore
 
 # Télécharger le tokenizer NLTK
 nltk.download('punkt_tab')
