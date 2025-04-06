@@ -4,6 +4,11 @@ Ce projet a été développé dans le cadre du cours d'apprentissage profond **8
 
 Pour l'utilisation de ffmpeg entrez la commande ci-joint dans le terminal : ffmpeg -i Test video.mp4 -vn -acodec pcm s16le -ar 16000 -ac 1 output audio.wav Ffmpeg-i Test video.mp4 -vn -acodec pcm_s16le -ar 16000 -ac 1 output audio.wav 
 
+Ordre d'exécution : 
+-Vosk.py
+-post_process_subtitles.py
+VideoFinale_test.py
+
 # MoviePy avec ImageMagick pour l'ajout de sous-titres
 
 ## Prérequis

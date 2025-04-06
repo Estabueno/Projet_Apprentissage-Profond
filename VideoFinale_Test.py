@@ -16,7 +16,7 @@ def subtitle_generator(txt):
 video = VideoFileClip("ffmpeg-7.1.1/Test_video.mp4")
 
 # Charger le fichier de sous-titres au format SRT et créer le clip de sous-titres
-subtitles = SubtitlesClip("output_subtitles.srt", subtitle_generator)
+subtitles = SubtitlesClip("corrected.srt", subtitle_generator)
 
 # Superposer les sous-titres sur la vidéo, positionnés en bas au centre
 video_with_subs = CompositeVideoClip([video, subtitles.set_pos(('center', 'bottom'))])
