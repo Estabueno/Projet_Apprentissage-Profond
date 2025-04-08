@@ -141,6 +141,14 @@ def seconds_to_timestamp(seconds):
     milliseconds = int((td.total_seconds() - total_seconds) * 1000)
     return f"{hours:02}:{minutes:02}:{seconds:02},{milliseconds:03}"
 
+def seconds_to_timestamp2(seconds):
+    td = datetime.timedelta(seconds=seconds)
+    total_seconds = int(td.total_seconds())
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    milliseconds = int((td.total_seconds() - total_seconds) * 1000)
+    return f"{hours:02}:{minutes:02}:{seconds+1:02},{milliseconds:03}"
+
 
 def main():
     model_path = "vosk-model-fr-0.22"
@@ -170,7 +178,7 @@ def main():
         for i, segment in enumerate(result["segments"], start=1):
             if not segment["text"].startswith(" Sous-titrage"):
                 start_timestamp = seconds_to_timestamp(segment["start"])
-                end_timestamp = seconds_to_timestamp(segment["end"])
+                end_timestamp = seconds_to_timestamp2(segment["end"])
                 text = segment["text"].strip()
                 srt_file.write(f"{i}\n")
                 srt_file.write(f"{start_timestamp} --> {end_timestamp}\n")

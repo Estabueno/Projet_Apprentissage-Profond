@@ -5,7 +5,7 @@ import nltk # type: ignore
 nltk.download('punkt_tab')
 
 # Créer le pipeline de traduction du français vers l'anglais
-translator = pipeline("translation_fr_to_en", model="Helsinki-NLP/opus-mt-fr-en")
+translator = pipeline("translation_fr_to_ase", model="Helsinki-NLP/opus-mt-fr-ase")
 
 # Lire la transcription
 with open("output_transcription.txt", "r", encoding="utf-8") as f:
