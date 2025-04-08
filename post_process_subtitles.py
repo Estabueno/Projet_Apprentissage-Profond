@@ -3,6 +3,7 @@ from typing import List, Dict, Tuple
 import difflib
 from transformers import pipeline
 import argparse
+from transformers import pipeline
 
 class SRTEntry:
     def __init__(self, index: int, time_code: str, text: str):
@@ -239,6 +240,9 @@ def fix_srt(srt_content: str, reference_srt: str = None, max_chars: int = 42, sp
     
     # Filtrer les entrées vides
     entries = [entry for entry in entries if entry.text.strip()]
+
+    if lang != "fr":
+        translator = pipeline("translation_fr_to_other", model="Helsinki-NLP/opus-mt-fr-"+lang)
     
     if lang != "fr":
         translator = pipeline("translation_fr_to_other", model="Helsinki-NLP/opus-mt-fr-"+lang)
@@ -247,6 +251,8 @@ def fix_srt(srt_content: str, reference_srt: str = None, max_chars: int = 42, sp
     for entry in entries:
         if(lang != "fr"):
             entry.text = (translator(entry.text,max_length=512)[0]['translation_text'])
+        if(lang != "fr"):
+            entry.text = translator(entry.text,max_length=512)
         # Corriger la ponctuation (à faire avant le formatage)
         entry.text = fix_punctuation(entry.text)
         # Formater le texte
