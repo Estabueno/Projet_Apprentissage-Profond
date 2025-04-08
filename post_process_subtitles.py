@@ -1,6 +1,7 @@
 import re
 from typing import List, Dict, Tuple
 import difflib
+from transformers import pipeline
 
 class SRTEntry:
     def __init__(self, index: int, time_code: str, text: str):
@@ -225,7 +226,7 @@ def process_srt_with_line_split(srt_content: str) -> str:
     # Regénérer le contenu SRT
     return '\n\n'.join(str(entry) for entry in new_entries)
 
-def fix_srt(srt_content: str, reference_srt: str = None, max_chars: int = 42, split_lines: bool = True) -> str:
+def fix_srt(srt_content: str, reference_srt: str = None, max_chars: int = 42,lang = "fr", split_lines: bool = True) -> str:
     """Fonction principale pour corriger un fichier SRT"""
     import difflib
 
@@ -238,9 +239,14 @@ def fix_srt(srt_content: str, reference_srt: str = None, max_chars: int = 42, sp
     
     # Filtrer les entrées vides
     entries = [entry for entry in entries if entry.text.strip()]
+
+    if lang != "fr":
+        translator = pipeline("translation_fr_to_other", model="Helsinki-NLP/opus-mt-fr-"+lang)
     
     # Corriger chaque entrée
     for entry in entries:
+        if(lang != "fr"):
+            entry.text = translator(entry.text,max_length=512)
         # Corriger la ponctuation (à faire avant le formatage)
         entry.text = fix_punctuation(entry.text)
         # Formater le texte
@@ -272,8 +278,9 @@ def main():
     with open('output_subtitles.srt', 'r', encoding='utf-8') as f:
         reference_srt = f.read()
 
+
     # Corriger le SRT, avec ou sans division des lignes
-    corrected_srt = fix_srt(original_srt, max_chars=55, split_lines=True)
+    corrected_srt = fix_srt(original_srt, max_chars=55, split_lines=True,lang = "en")
 
     # Sauvegarder le résultat
     with open('corrected.srt', 'w', encoding='utf-8') as f:
