@@ -10,6 +10,22 @@ Pour extraire l'audio de la vidéo source, utilisez la commande ffmpeg suivante 
 ffmpeg -i "audio_file" -ar 16000 -ac 1 "output_wav"
 ```
 
+## Installation des modèles Vosk
+
+Pour utiliser le script Vosk.py, vous devez télécharger les modèles de reconnaissance vocale correspondant aux langues parlées dans vos vidéos :
+
+1. Visitez le [dépôt officiel des modèles Vosk](https://alphacephei.com/vosk/models)
+2. Téléchargez les modèles pour les langues souhaitées (par exemple, `vosk-model-fr-0.22` pour le français, `vosk-model-en-us-0.22` pour l'anglais américain)
+3. Décompressez les fichiers à la racine du projet
+4. Dans le script Vosk.py, assurez-vous que le chemin vers le modèle correspond à votre structure de dossiers :
+
+```python
+# Exemple de configuration du modèle dans Vosk.py
+model_path = "vosk-model-fr-0.22"  # Ajustez selon votre langue
+```
+
+Choisissez le modèle approprié en fonction de vos besoins et des ressources de votre système.
+
 ## Ordre d'exécution des scripts
 
 Pour traiter une vidéo et générer les sous-titres traduits, suivez cette séquence d'exécution :
