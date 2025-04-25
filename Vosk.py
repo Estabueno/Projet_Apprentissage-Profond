@@ -141,31 +141,23 @@ def seconds_to_timestamp(seconds):
     milliseconds = int((td.total_seconds() - total_seconds) * 1000)
     return f"{hours:02}:{minutes:02}:{seconds:02},{milliseconds:03}"
 
-def seconds_to_timestamp2(seconds):
-    td = datetime.timedelta(seconds=seconds)
-    total_seconds = int(td.total_seconds())
-    hours, remainder = divmod(total_seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    milliseconds = int((td.total_seconds() - total_seconds) * 1000)
-    return f"{hours:02}:{minutes:02}:{seconds+1:02},{milliseconds:03}"
-
 
 def main():
-    model_path = "vosk-model-fr-0.22"
-    language = "fr"
+    # Choix du modèle et de langue
+    model_path = "vosk-model-en-us-0.42-gigaspeech"
+    language = "en"
     
     if not os.path.exists(model_path):
         print(f"Le modèle Vosk pour {language} n'est pas trouvé.")
         print(f"Veuillez télécharger le modèle depuis https://alphacephei.com/vosk/models")
         print(f"et l'extraire dans un dossier nommé '{model_path}'")
-        # Option: ajouter un code pour télécharger automatiquement le modèle
         sys.exit(1)
     
     # Initialiser le transcripteur Vosk
     transcriber = VoskTranscribe(model_path=model_path, language=language)
     
     # Chemin du fichier audio à transcrire
-    audio_file = "ffmpeg-7.1.1/output_audio.wav"  # À adapter selon votre fichier
+    audio_file = "ffmpeg-7.1.1/batman_temp.wav"
     
     # Transcrire l'audio avec Vosk
     print(f"Transcription en cours de {audio_file}...")
@@ -178,7 +170,7 @@ def main():
         for i, segment in enumerate(result["segments"], start=1):
             if not segment["text"].startswith(" Sous-titrage"):
                 start_timestamp = seconds_to_timestamp(segment["start"])
-                end_timestamp = seconds_to_timestamp2(segment["end"])
+                end_timestamp = seconds_to_timestamp(segment["end"]+1.1)
                 text = segment["text"].strip()
                 srt_file.write(f"{i}\n")
                 srt_file.write(f"{start_timestamp} --> {end_timestamp}\n")

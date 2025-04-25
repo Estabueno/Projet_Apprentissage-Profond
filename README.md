@@ -2,12 +2,39 @@
 
 Ce projet a été développé dans le cadre du cours d'apprentissage profond **8INF887**. Il vise à automatiser le processus de sous-titrage et de traduction de vidéos en utilisant des techniques d'intelligence artificielle.
 
-Pour l'utilisation de ffmpeg entrez la commande ci-joint dans le terminal : ffmpeg -i Test video.mp4 -vn -acodec pcm s16le -ar 16000 -ac 1 output audio.wav Ffmpeg-i Test video.mp4 -vn -acodec pcm_s16le -ar 16000 -ac 1 output audio.wav 
+## Préparation de l'audio
 
-Ordre d'exécution : 
--Vosk.py
--post_process_subtitles.py
-VideoFinale_test.py
+Pour extraire l'audio de la vidéo source, utilisez la commande ffmpeg suivante :
+
+```bash
+ffmpeg -i "audio_file" -ar 16000 -ac 1 "output_wav"
+```
+
+## Ordre d'exécution des scripts
+
+Pour traiter une vidéo et générer les sous-titres traduits, suivez cette séquence d'exécution :
+
+1. **Segmentation.py** - Segmente l'audio en fichier SRT avec Whisper Turbo
+   ```bash
+   python Segmentation.py
+   ```
+
+2. **Vosk.py** - Segmente l'audio een fichier SRT avec Vosk
+   ```bash
+   python Vosk.py
+   ```
+
+3. **post_process_subtitles.py** - Traite, optimise et traduis les sous-titres générés
+   ```bash
+   python post_process_subtitles.py
+   ```
+
+4. **VideoFinale_test.py** - Créer et intègre les sous-titres dans la vidéo finale
+   ```bash
+   python VideoFinale_test.py
+   ```
+
+Chaque script génère des fichiers intermédiaires qui seront utilisés par les scripts suivants dans la chaîne de traitement.
 
 # MoviePy avec ImageMagick pour l'ajout de sous-titres
 
@@ -35,23 +62,42 @@ Il se peut que le chemin soit, par exemple, `/opt/homebrew/bin/convert`.
 
 ### Sur Windows
 
-Téléchargez et installez ImageMagick depuis le site officiel. Assurez-vous d'ajouter ImageMagick à votre PATH ou de configurer MoviePy pour pointer vers l'exécutable.
+1. Téléchargez et installez ImageMagick depuis le [site officiel](https://imagemagick.org/script/download.php#windows).
+2. **Important** : Assurez-vous de cocher l'option "Install legacy utilities (e.g. convert)" lors de l'installation.
+3. Assurez-vous d'ajouter ImageMagick à votre PATH système.
+4. Dans votre script Python, configurez le chemin vers l'exécutable avec une syntaxe comme celle-ci :
 
-### Sur Linux
+```python
+import os
+# Pour Windows
+os.environ["IMAGEMAGICK_BINARY"] = r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe"
+```
 
-Utilisez votre gestionnaire de paquets. Par exemple, sur Ubuntu :
+Vous pouvez également utiliser la fonction `change_settings` de MoviePy :
 
-```bash
-sudo apt-get install imagemagick
+```python
+from moviepy.config import change_settings
+change_settings({"IMAGEMAGICK_BINARY": r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe"})
 ```
 
 ## Configuration de MoviePy
 
-Si MoviePy ne parvient pas à trouver ImageMagick, définissez la variable d'environnement `IMAGEMAGICK_BINARY` dans votre script Python. Par exemple, ajoutez au début de votre script :
+### Sur macOS
+
+Si MoviePy ne parvient pas à trouver ImageMagick, définissez la variable d'environnement `IMAGEMAGICK_BINARY` dans votre script Python :
 
 ```python
 import os
 os.environ["IMAGEMAGICK_BINARY"] = "/usr/local/bin/convert" 
+```
+
+### Sur Windows
+
+Sur Windows, l'exécutable peut s'appeler `magick.exe` plutôt que `convert` dans les versions récentes :
+
+```python
+import os
+os.environ["IMAGEMAGICK_BINARY"] = r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe"
 ```
 
 ## Dépannage
@@ -65,4 +111,6 @@ OSError: MoviePy Error: creation of None failed because of the following error: 
 Cela signifie généralement qu'ImageMagick n'est pas installé ou que MoviePy ne parvient pas à localiser l'exécutable. Pour résoudre ce problème :
 
 1. **Vérifiez l'installation d'ImageMagick** en suivant les instructions ci-dessus.
-2. **Configurez la variable d'environnement** `IMAGEMAGICK_BINARY` dans votre script pour pointer vers le chemin correct de l'exécutable (par exemple `/usr/local/bin/convert`).
+2. **Configurez la variable d'environnement** `IMAGEMAGICK_BINARY` dans votre script pour pointer vers le chemin correct de l'exécutable.
+3. **Sur Windows**, vérifiez que le chemin est bien entouré de la notation `r"..."` pour éviter les problèmes avec les caractères d'échappement.
+4. **Redémarrez** votre environnement de développement après avoir installé ImageMagick.

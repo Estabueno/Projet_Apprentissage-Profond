@@ -1,169 +1,59 @@
 import re
-from typing import List, Dict, Tuple
+from typing import List, Optional
 import difflib
 from transformers import pipeline
-import argparse
-from transformers import pipeline
 
+# Choix de comparaison avec un modèle de référence
+REFERENCE_MODEL = True
+
+# ----------------------------------------------------------------------
+# Classe représentant une entrée SRT
+# ----------------------------------------------------------------------
 class SRTEntry:
     def __init__(self, index: int, time_code: str, text: str):
         self.index = index
         self.time_code = time_code
         self.text = text
-    
+
     def __str__(self):
-        # Ajouter une ligne vide supplémentaire à la fin de chaque entrée
+        # Retourne l’entrée au format SRT (une ligne vide à la fin)
         return f"{self.index}\n{self.time_code}\n{self.text}\n\n"
 
+# ----------------------------------------------------------------------
+# Fonctions utilitaires pour le format SRT
+# ----------------------------------------------------------------------
 def parse_srt(content: str) -> List[SRTEntry]:
-    """Parse le contenu SRT en entrées individuelles"""
-    # Supprime les caractères invisibles et normalise les sauts de ligne
+    """
+    Parse le contenu SRT en entrées individuelles.
+    Nettoie le texte, sépare en blocs et crée des SRTEntry.
+    """
     content = content.strip().replace('\r\n', '\n')
-    
-    # Séparation des blocs
     blocks = re.split(r'\n\n+', content)
     entries = []
-    
     for block in blocks:
-        if not block.strip():  # Ignorer les blocs vides
+        if not block.strip():
             continue
-            
         lines = block.split('\n')
         if len(lines) < 3:
             continue
-        
         try:
             index = int(lines[0])
             time_code = lines[1]
-            text = '\n'.join(lines[2:])
-            
-            # Ignorer les entrées dont le texte est vide
-            if not text.strip():
-                continue
-                
-            entries.append(SRTEntry(index, time_code, text))
+            text = '\n'.join(lines[2:]).strip()
+            if text:
+                entries.append(SRTEntry(index, time_code, text))
         except ValueError:
             continue
-    
     return entries
 
-def format_text(text: str, max_chars_per_line: int = 42) -> str:
-    """Formate le texte avec ponctuation et majuscules, sans majuscules après virgules"""
-    # Mettre en majuscule au début du texte
-    if text and text[0].isalpha():
-        text = text[0].upper() + text[1:]
-    
-    # Mettre en majuscule après les ponctuations finales (sauf virgules)
-    parts = []
-    current = ""
-    
-    for char in text:
-        current += char
-        if char in '.!?':
-            parts.append(current)
-            current = ""
-    
-    if current:  # Ajouter la dernière partie si elle existe
-        parts.append(current)
-    
-    # Mettre en majuscule le premier caractère de chaque partie (après un point)
-    result = ""
-    for part in parts:
-        part = part.strip()
-        if part and part[0].isalpha():
-            part = part[0].upper() + part[1:]
-        result += part + " "
-    
-    text = result.strip()
-    
-    # Ajout des points à la fin des phrases si nécessaire
-    if text and not text.strip().endswith(('.', '!', '?', '...', ':', ',')):
-        text += '.'
-    
-    # S'assurer explicitement qu'il n'y a pas de majuscule après une virgule
-    text = re.sub(r',\s+([A-Z])', lambda m: f", {m.group(1).lower()}", text)
-    
-    # Format pour respecter le nombre maximum de caractères par ligne
-    words = text.split()
-    lines = []
-    current_line = ""
-    
-    for word in words:
-        if len(current_line + " " + word) <= max_chars_per_line or not current_line:
-            if current_line:
-                current_line += " " + word
-            else:
-                current_line = word
-        else:
-            lines.append(current_line)
-            current_line = word
-    
-    if current_line:
-        lines.append(current_line)
-    
-    # Si on a plus d'une ligne, on les formate correctement
-    if len(lines) > 1:
-        return '\n'.join(lines)
-    return text
-
-def fix_punctuation(text: str) -> str:
-    """Corrige la ponctuation"""
-    # Ajoute un espace après les virgules, points, etc. s'il n'y en a pas
-    text = re.sub(r'([,.!?:;])([^\s\d])', r'\1 \2', text)
-    
-    # Supprime les espaces avant la ponctuation
-    text = re.sub(r'\s+([,.!?:;])', r'\1', text)
-    
-    # Ajoute un espace après la ponctuation si nécessaire
-    text = re.sub(r'([,.!?:;])([^\s\d])', r'\1 \2', text)
-    
-    # Assure qu'il n'y a JAMAIS de majuscule après une virgule
-    text = re.sub(r',\s+([A-Z])', lambda m: f", {m.group(1).lower()}", text)
-    
-    return text
-
-def compare_and_merge_srt(original_entries: List[SRTEntry], reference_entries: List[SRTEntry]) -> List[SRTEntry]:
-    """Compare et fusionne deux fichiers SRT"""
-    merged_entries = []
-    
-    # Créer un dictionnaire des textes de référence
-    reference_texts = {entry.text.lower().strip(): entry for entry in reference_entries}
-    
-    for original in original_entries:
-        best_match = None
-        best_ratio = 0
-        original_text_lower = original.text.lower().strip()
-        
-        # Chercher la meilleure correspondance dans les références
-        for ref_text, ref_entry in reference_texts.items():
-            ratio = difflib.SequenceMatcher(None, original_text_lower, ref_text).ratio()
-            if ratio > best_ratio and ratio > 0.7:  # Seuil de correspondance à 70%
-                best_ratio = ratio
-                best_match = ref_entry
-        
-        # Créer une nouvelle entrée avec les meilleurs éléments
-        new_entry = SRTEntry(original.index, original.time_code, original.text)
-        
-        if best_match:
-            # Utiliser le texte de référence s'il semble meilleur (plus long ou plus formaté)
-            if len(best_match.text) > len(original.text) or ',' in best_match.text or '.' in best_match.text:
-                new_entry.text = best_match.text
-                
-                # S'assurer qu'il n'y a pas de majuscule après une virgule dans le texte de référence
-                new_entry.text = re.sub(r',\s+([A-Z])', lambda m: f", {m.group(1).lower()}", new_entry.text)
-        
-        merged_entries.append(new_entry)
-    
-    return merged_entries
-
 def time_to_seconds(time_str: str) -> float:
-    """Convertit un time code 'HH:MM:SS,mmm' en secondes"""
+    """Convertit un time code 'HH:MM:SS,mmm' en secondes."""
     hours, minutes, rest = time_str.split(':')
     seconds, millis = rest.split(',')
     return int(hours) * 3600 + int(minutes) * 60 + int(seconds) + int(millis) / 1000
 
 def seconds_to_timecode(seconds: float) -> str:
-    """Convertit des secondes en time code 'HH:MM:SS,mmm'"""
+    """Convertit des secondes en time code 'HH:MM:SS,mmm'."""
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
     secs = int(seconds % 60)
@@ -171,129 +61,252 @@ def seconds_to_timecode(seconds: float) -> str:
     return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
 
 def split_timecode(time_code: str) -> tuple:
-    """Sépare le time code en début et fin"""
+    """Sépare le time code complet en début et fin."""
     return time_code.split(" --> ")
 
 def create_timecode(start: float, end: float) -> str:
-    """Crée un time code à partir des temps de début et de fin en secondes"""
+    """Crée un time code à partir des valeurs de début et de fin en secondes."""
     return f"{seconds_to_timecode(start)} --> {seconds_to_timecode(end)}"
+
+# ----------------------------------------------------------------------
+# Fonctions pour la correction et le formatage du texte
+# ----------------------------------------------------------------------
+def fix_punctuation(text: str) -> str:
+    """
+    Corrige la ponctuation :
+    - Ajoute un espace après la ponctuation s'il manque
+    - Supprime les espaces avant la ponctuation
+    - Convertit les majuscules après des virgules en minuscules
+    """
+    text = re.sub(r'([,.!?:;])([^\s\d])', r'\1 \2', text)  # espace après ponctuation
+    text = re.sub(r'\s+([,.!?:;])', r'\1', text)            # suppression espace avant ponctuation
+    text = re.sub(r'([,.!?:;])([^\s\d])', r'\1 \2', text) 
+    text = re.sub(r',\s+([A-Z])', lambda m: f", {m.group(1).lower()}", text)
+    return text
+
+def format_text(text: str, max_chars_per_line: int = 42) -> str:
+    """
+    Format le texte pour :
+        - Mettre en majuscule la première lettre de chaque phrase
+        - Ajouter une ponctuation finale si nécessaire
+        - Découper en lignes n'excédant pas max_chars_per_line
+    """
+    if text and text[0].isalpha():
+        text = text[0].upper() + text[1:]
+
+    # Découpage par ponctuation finale et remise en majuscules au début de chaque segment
+    parts = []
+    current = ""
+    for char in text:
+        current += char
+        if char in '.!?':
+            parts.append(current.strip())
+            current = ""
+    if current:
+        parts.append(current.strip())
+    text = " ".join(part[0].upper() + part[1:] if part and part[0].islower() else part for part in parts)
+
+    if text and text[-1] not in '.!?':
+        text += '.'
+
+    text = re.sub(r',\s+([A-Z])', lambda m: f", {m.group(1).lower()}", text)
+
+    # Découpage en lignes de longueur maximale
+    words = text.split()
+    lines = []
+    current_line = ""
+    for word in words:
+        if current_line:
+            tentative = current_line + " " + word
+        else:
+            tentative = word
+        if len(tentative) <= max_chars_per_line:
+            current_line = tentative
+        else:
+            lines.append(current_line)
+            current_line = word
+    if current_line:
+        lines.append(current_line)
+    return "\n".join(lines) if len(lines) > 1 else text
 
 def split_entry_by_lines(entry: SRTEntry) -> List[SRTEntry]:
     """
-    Pour une entrée SRT avec plusieurs lignes de texte,
-    répartit l'intervalle de temps en parts égales pour chaque ligne.
+    Si une entrée SRT contient plusieurs lignes de texte,
+    répartit l'intervalle de temps uniformément pour chaque ligne.
     """
-    # Sépare le time code en début et fin
     start_str, end_str = split_timecode(entry.time_code)
     start_seconds = time_to_seconds(start_str)
     end_seconds = time_to_seconds(end_str)
     total_duration = end_seconds - start_seconds
-
-    # Sépare le texte par sauts de ligne
-    lines = entry.text.strip().split('\n')
-    n = len(lines)
-    if n == 0:
+    lines = [line.strip() for line in entry.text.split('\n') if line.strip()]
+    if not lines:
         return [entry]
-
-    interval = total_duration / n
+    interval = total_duration / len(lines)
     new_entries = []
     for i, line in enumerate(lines):
-        # Ignorer les lignes vides
-        if not line.strip():
-            continue
-            
         new_start = start_seconds + i * interval
         new_end = start_seconds + (i + 1) * interval
         new_time_code = create_timecode(new_start, new_end)
-        # On crée une nouvelle entrée avec le texte de la ligne
-        new_entries.append(SRTEntry(0, new_time_code, line.strip()))
+        new_entries.append(SRTEntry(0, new_time_code, line))
     return new_entries
 
 def process_srt_with_line_split(srt_content: str) -> str:
-    """Traite le fichier SRT en scindant les entrées multi-lignes en plusieurs time stamps"""
+    """
+    Scinde les entrées SRT multi-lignes en plusieurs entrées (avec répartition uniforme des time codes).
+    """
     original_entries = parse_srt(srt_content)
     new_entries = []
     for entry in original_entries:
-        # Si l'entrée contient plusieurs lignes, on les sépare en plusieurs entrées
-        if '\n' in entry.text:
-            splitted = split_entry_by_lines(entry)
-            new_entries.extend(splitted)
+        if "\n" in entry.text:
+            new_entries.extend(split_entry_by_lines(entry))
         else:
             new_entries.append(entry)
-
-    # Réattribuer les index
     for i, entry in enumerate(new_entries):
         entry.index = i + 1
-    
-    # Regénérer le contenu SRT
-    return '\n\n'.join(str(entry) for entry in new_entries)
+    return "\n\n".join(str(entry) for entry in new_entries)
 
-def fix_srt(srt_content: str, reference_srt: str = None, max_chars: int = 42, split_lines: bool = True, lang="fr") -> str:
-    """Fonction principale pour corriger un fichier SRT"""
+def merge_srt_files(reference_entries: List[SRTEntry], original_entries: List[SRTEntry]) -> List[SRTEntry]:
+    """
+    Fusionne deux fichiers SRT :
+    - reference_entries : fichier avec le texte correct et les timestamps de référence
+    - original_entries : fichier avec les timestamps à conserver
 
-    entries = parse_srt(srt_content)
-    
-    # Si un SRT de référence est fourni, le comparer et fusionner
-    if reference_srt:
-        reference_entries = parse_srt(reference_srt)
-        entries = compare_and_merge_srt(entries, reference_entries)
-    
-    # Filtrer les entrées vides
-    entries = [entry for entry in entries if entry.text.strip()]
+    Pour chaque entrée originale, on cherche la meilleure correspondance dans les entrées de référence.
+    On garde le timestamp original et on remplace le texte par le texte de référence.
+    Ensuite, on ajoute toutes les entrées de référence non appariées en utilisant leurs timestamps d'origine.
+    """
+    merged_entries: List[SRTEntry] = []
+    processed_refs = set()
 
-    if lang != "fr":
-        translator = pipeline("translation_fr_to_other", model="Helsinki-NLP/opus-mt-fr-"+lang)
-    
-    if lang != "fr":
-        translator = pipeline("translation_fr_to_other", model="Helsinki-NLP/opus-mt-fr-"+lang)
-    
-    # Corriger chaque entrée
-    for entry in entries:
-        if(lang != "fr"):
-            entry.text = (translator(entry.text,max_length=512)[0]['translation_text'])
-        if(lang != "fr"):
-            entry.text = translator(entry.text,max_length=512)
-        # Corriger la ponctuation (à faire avant le formatage)
-        entry.text = fix_punctuation(entry.text)
-        # Formater le texte
-        entry.text = format_text(entry.text, max_chars)
-        # Vérification finale pour les majuscules après virgules
-        entry.text = re.sub(r',\s+([A-Z])', lambda m: f", {m.group(1).lower()}", entry.text)
-    
-    # Recalculer les index
-    for i, entry in enumerate(entries):
-        entry.index = i + 1
-    
-    # Générer le contenu SRT
-    result = '\n\n'.join(str(entry) for entry in entries)
-    
-    # Si demandé, diviser les entrées multi-lignes
-    if split_lines:
-        result = process_srt_with_line_split(result)
-        
-    # Vérification finale pour s'assurer qu'il n'y a pas de blocs vides
-    result = re.sub(r'\n\n+', '\n\n', result)
-    
-    return result
+    # Apparier les entrées originales
+    for orig_entry in original_entries:
+        orig_text = orig_entry.text.lower().strip()
+        best_match = None
+        best_idx = -1
+        best_ratio = 0.0
 
+        for i, ref_entry in enumerate(reference_entries):
+            if i in processed_refs:
+                continue
+            ref_text = ref_entry.text.lower().strip()
+            ratio = difflib.SequenceMatcher(None, orig_text, ref_text).ratio()
+            if ratio > best_ratio and ratio > 0.6:
+                best_ratio = ratio
+                best_match = ref_entry
+                best_idx = i
+
+        if best_match:
+            merged_entries.append(
+                SRTEntry(
+                    orig_entry.index,
+                    orig_entry.time_code,
+                    best_match.text
+                )
+            )
+            processed_refs.add(best_idx)
+
+    # Ajouter les références non appariées avec leur timestamp d'origine
+    for i, ref_entry in enumerate(reference_entries):
+        if i not in processed_refs:
+            # On attribue un index provisoire (sera réindexé ensuite)
+            merged_entries.append(
+                SRTEntry(
+                    0,
+                    ref_entry.time_code,
+                    ref_entry.text
+                )
+            )
+
+    # Trier par heure de début
+    merged_entries.sort(
+        key=lambda e: time_to_seconds(split_timecode(e.time_code)[0])
+    )
+
+    # Réindexer en séquence
+    for idx, entry in enumerate(merged_entries, start=1):
+        entry.index = idx
+
+    return merged_entries
+
+# ----------------------------------------------------------------------
+# Classe centrale de traitement SRT
+# ----------------------------------------------------------------------
+class SRTProcessor:
+    def __init__(self, lang1: str = "fr", lang2: str = "en", max_chars: int = 42, split_lines: bool = True, reference_srt: Optional[str] = None):
+        self.lang1 = lang1
+        self.lang2 = lang2
+        self.max_chars = max_chars
+        self.split_lines = split_lines
+        self.reference_entries = parse_srt(reference_srt) if reference_srt else None
+        self.translator = None
+
+        # Crée la pipeline de traduction une seule fois si la langue n'est pas le français
+        model_name = f"Helsinki-NLP/opus-mt-{self.lang1}-{self.lang2}"
+        print(f"Traduction '{self.lang1}' en '{self.lang2}'")
+        self.translator = pipeline("translation", model=model_name)
+    
+    def process_entries(self, entries: List[SRTEntry]) -> List[SRTEntry]:
+        # Fusionner avec référence si fournie
+        if self.reference_entries:
+            entries = merge_srt_files(self.reference_entries, entries)
+        # Filtrer les entrées vides
+        entries = [entry for entry in entries if entry.text.strip()]
+        for entry in entries:
+            # Traduction unique si un traducteur est configuré
+            if self.translator:
+                # On traduit et récupère le texte traduit
+                result = self.translator(entry.text, max_length=512)
+                entry.text = result[0]['translation_text']
+            # Correction de la ponctuation et formatage
+            entry.text = fix_punctuation(entry.text)
+            entry.text = format_text(entry.text, self.max_chars)
+            # Vérification finale pour les majuscules après virgule
+            entry.text = re.sub(r',\s+([A-Z])', lambda m: f", {m.group(1).lower()}", entry.text)
+        # Réindexer les entrées
+        for i, entry in enumerate(entries):
+            entry.index = i + 1
+        return entries
+
+    def process_srt(self, srt_content: str) -> str:
+        entries = parse_srt(srt_content)
+        entries = self.process_entries(entries)
+        # Rassembler le contenu SRT
+        result = "\n\n".join(str(entry) for entry in entries)
+        # Diviser les entrées multi-lignes
+        if self.split_lines:
+            result = process_srt_with_line_split(result)
+        # Nettoyage final : supprimer les blocs vides éventuels
+        result = re.sub(r'\n\n+', '\n\n', result)
+        return result
+
+# ----------------------------------------------------------------------
+# Fonction principale
+# ----------------------------------------------------------------------
 def main():
-    parser = argparse.ArgumentParser()
-    lang = input("Entrez la langue souhaitée.\n")
+    # Demande de la langue de la vidéo
+    lang1 = input("Entrez la langue parlée dans la vidéo (laisser vide pour 'fr') : ").strip() or "fr"
+    # Demande de la langue à utiliser
+    lang2 = input("Entrez la langue souhaitée (laisser vide pour 'en') : ").strip() or "en"
+
+    # Lecture du fichier SRT d'entrée
     with open('output_subtitles_vosk.srt', 'r', encoding='utf-8') as f:
         original_srt = f.read()
 
-    if lang=="":
-        corrected_srt = fix_srt(original_srt, max_chars=55, split_lines=True, lang="fr")
+    if REFERENCE_MODEL:
+        # Lecture du SRT de référence
+        with open('output_subtitles_whisper.srt', 'r', encoding='utf-8') as f:
+            reference_srt = f.read()
     else:
-        # Corriger le SRT, avec ou sans division des lignes
-        corrected_srt = fix_srt(original_srt, max_chars=55, split_lines=True, lang=lang)
+        reference_srt = None
 
-    # with open('output_subtitles.srt', 'r', encoding='utf-8') as f:
-    #     reference_srt = f.read()
+    # Création d'une instance du processeur SRT et traitement
+    processor = SRTProcessor(lang1=lang1, lang2=lang2, max_chars=57, split_lines=True, reference_srt=reference_srt)
+    corrected_srt = processor.process_srt(original_srt)
 
-    # Sauvegarder le résultat
+    # Sauvegarde du résultat dans un fichier
     with open('corrected.srt', 'w', encoding='utf-8') as f:
         f.write(corrected_srt)
+    print("Traitement terminé, fichier 'corrected.srt' généré.")
 
 if __name__ == "__main__":
     main()

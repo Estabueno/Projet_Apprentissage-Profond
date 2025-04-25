@@ -5,14 +5,14 @@ import nltk # type: ignore
 nltk.download('punkt_tab')
 
 # Créer le pipeline de traduction du français vers l'anglais
-translator = pipeline("translation_fr_to_ase", model="Helsinki-NLP/opus-mt-fr-ase")
+translator = pipeline("translation_en_to_fr", model="Helsinki-NLP/opus-mt-en-fr")
 
 # Lire la transcription
 with open("output_transcription.txt", "r", encoding="utf-8") as f:
     transcription_text = f.read()
 
 # Segmenter le texte en phrases car les timestamps ne sont pas forcément représentative d'une phrase entière
-sentences = nltk.tokenize.sent_tokenize(transcription_text, language="french")
+sentences = nltk.tokenize.sent_tokenize(transcription_text, language="english")
 
 # Traduire chaque phrase
 translated_sentences = []
