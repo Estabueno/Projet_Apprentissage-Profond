@@ -2,14 +2,6 @@
 
 Ce projet a été développé dans le cadre du cours d'apprentissage profond **8INF887**. Il vise à automatiser le processus de sous-titrage et de traduction de vidéos en utilisant des techniques d'intelligence artificielle.
 
-## Préparation de l'audio
-
-Pour extraire l'audio de la vidéo source, utilisez la commande ffmpeg suivante :
-
-```bash
-ffmpeg -i "audio_file" -ar 16000 -ac 1 "output_wav"
-```
-
 ## Installation des modèles Vosk
 
 Pour utiliser le script Vosk.py, vous devez télécharger les modèles de reconnaissance vocale correspondant aux langues parlées dans vos vidéos :
